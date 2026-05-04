@@ -5,12 +5,15 @@
 ## BEFORE YOU TOUCH ANY CODE
 
 Read the PDF and write down on paper:
-- [ ] The URL of the GET endpoint  (e.g. `api/customers/{id}/rentals`)
+- [ ] The URL of the GET details endpoint  (e.g. `api/customers/{id}/rentals`)
+- [ ] The URL of the GET list endpoint, if present (e.g. `api/customers?filter=abc`)
 - [ ] The URL of the POST endpoint (e.g. `api/customers/{id}/rentals`)
+- [ ] The URL of the PUT endpoint, if present (e.g. `api/customers/{id}`)
+- [ ] The URL of the DELETE endpoint, if present (e.g. `api/customers/{id}`)
 - [ ] All table names from the DB diagram
 - [ ] All column names from the DB diagram
 - [ ] The example GET response JSON (you will paste parts of it into DTOs)
-- [ ] The example POST request JSON (you will paste parts of it into DTOs)
+- [ ] The example POST / PUT request JSON (you will paste parts of it into DTOs)
 
 ---
 
@@ -130,7 +133,37 @@ public class MovieResponse                  // was: GrandItemResponse
 
 ---
 
-### 3B — Request DTOs (what the POST body contains)
+### 3B — List item response DTO (only if exam has a GET list endpoint)
+
+If the exam has `GET /api/customers` (no `{id}`), you need a flat DTO for each row — no nested lists.
+
+```csharp
+public class CustomerListItemResponse   // was: SampleListItemResponse
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = null!;
+    // ← add whatever columns the GET list JSON shows
+}
+```
+
+---
+
+### 3C — Update request DTO (only if exam has a PUT endpoint)
+
+Same rules as the POST DTO but for `UpdateSampleRequest`. Add `[Required]` on every field.
+
+```csharp
+public class UpdateCustomerRequest      // was: UpdateSampleRequest
+{
+    [Required] public string FirstName { get; set; } = null!;
+    [Required] public string LastName  { get; set; } = null!;
+    // ← add/remove to match exam PUT body
+}
+```
+
+---
+
+### 3D — Request DTOs (what the POST body contains)
 
 Look at the example POST request JSON in the PDF. It looks like:
 ```json
@@ -171,20 +204,29 @@ You need to update two files. Both must have the exact same method signatures.
 
 ### 4A → open `Services/ISampleService.cs`
 
-Replace the two method signatures with your actual ones.
-Use the names of your real DTO classes (from Step 3).
+Replace the method signatures with your actual ones.
+Only include the methods your exam actually needs — remove the rest.
 
 ```csharp
-// GET endpoint → return type is nullable (?) so null means "not found"
+// GET details — return type is nullable (?) so null means "not found"
 Task<CustomerRentalsResponse?> GetCustomerRentalsAsync(int customerId);
 
-// POST endpoint → just Task, no return value
+// GET list — include string? filter only if exam has a query param; otherwise just ()
+Task<List<CustomerListItemResponse>> GetAllAsync(string? filter);
+
+// POST — just Task, no return value
 Task CreateRentalAsync(int customerId, CreateRentalRequest request);
+
+// PUT — returns bool: false = row not found → 404
+Task<bool> UpdateAsync(int customerId, UpdateCustomerRequest request);
+
+// DELETE — returns bool: false = row not found → 404
+Task<bool> DeleteAsync(int customerId);
 ```
 
 ### 4B → open `Repositories/ISampleRepository.cs`
 
-Copy the exact same two lines here. The file is identical to the service interface.
+Copy the exact same lines here. The file is identical to the service interface.
 
 ---
 
@@ -258,7 +300,74 @@ return new CustomerRentalsResponse
 
 ---
 
-### 5B — CreateItemAsync (the POST method)
+### 5B — GetAllAsync (the GET list method — skip if exam has no list endpoint)
+
+Write a simple SELECT and loop. If the exam has a query filter param, add a `WHERE` with `LIKE`:
+
+```csharp
+var sql = "SELECT t.id, t.name FROM Customer t";
+if (!string.IsNullOrWhiteSpace(filter))
+    sql += " WHERE t.name LIKE @filter";
+
+// ...add @filter param if used...
+cmd.Parameters.AddWithValue("@filter", $"%{filter}%");
+
+// loop:
+while (await reader.ReadAsync())
+{
+    results.Add(new CustomerListItemResponse
+    {
+        Id   = reader.GetInt32(0),
+        Name = reader.GetString(1)
+    });
+}
+```
+
+If the exam uses exact match instead of `LIKE`, just use `= @filter` and drop the `%` wrapping.
+
+---
+
+### 5C — UpdateAsync (the PUT method — skip if exam has no PUT)
+
+Single UPDATE statement. Check `ExecuteNonQueryAsync()` — if 0 rows affected the id didn't exist:
+
+```csharp
+await using var cmd = new SqlCommand(@"
+    UPDATE Customer
+    SET first_name = @firstName,
+        last_name  = @lastName
+    WHERE customer_id = @id;",
+    connection);
+
+cmd.Parameters.AddWithValue("@firstName", request.FirstName);
+cmd.Parameters.AddWithValue("@lastName",  request.LastName);
+cmd.Parameters.AddWithValue("@id", id);
+
+var rows = await cmd.ExecuteNonQueryAsync();
+return rows > 0;   // false → controller returns 404
+```
+
+No transaction needed here unless the exam says otherwise.
+
+---
+
+### 5D — DeleteAsync (the DELETE method — skip if exam has no DELETE)
+
+Same pattern as UpdateAsync, just a DELETE statement:
+
+```csharp
+await using var cmd = new SqlCommand(
+    "DELETE FROM Customer WHERE customer_id = @id;",
+    connection);
+cmd.Parameters.AddWithValue("@id", id);
+
+var rows = await cmd.ExecuteNonQueryAsync();
+return rows > 0;   // false → controller returns 404
+```
+
+---
+
+### 5E — CreateItemAsync (the POST method)
 
 The method has 4 blocks inside the `try`. Replace the SQL in each one.
 
@@ -320,20 +429,38 @@ exam URL: api/customers/{id}/rentals
 base path → [Route("api/customers")]
 ```
 
-**2. The `[HttpGet]` and `[HttpPost]` route segments:**
+**2. The HTTP verb attributes and route segments** — one per endpoint the exam requires:
 ```
-exam URL: api/customers/{id}/rentals
-segment  → [HttpGet("{id:int}/rentals")]
-           [HttpPost("{id:int}/rentals")]
+GET details:  [HttpGet("{id:int}/rentals")]
+GET list:     [HttpGet]                          ← no segment; add [FromQuery] string? filter if needed
+POST:         [HttpPost("{id:int}/rentals")]
+PUT:          [HttpPut("{id:int}")]
+DELETE:       [HttpDelete("{id:int}")]
 ```
+Delete the action methods for verbs the exam does not ask for.
 
 **3. The method calls** — use your real service method names:
 ```csharp
+// GET details
 var result = await _sampleService.GetCustomerRentalsAsync(id);
+
+// GET list
+var results = await _sampleService.GetAllAsync(filter);
+
+// POST
 await _sampleService.CreateRentalAsync(id, request);
+
+// PUT / DELETE — check the bool and return NotFound if false
+var found = await _sampleService.UpdateAsync(id, request);
+if (!found) return NotFound(...);
+return Ok();
+
+var found = await _sampleService.DeleteAsync(id);
+if (!found) return NotFound(...);
+return NoContent();
 ```
 
-Do not change the `if (result is null) return NotFound(...)` pattern.
+Do not change the `if (result is null) return NotFound(...)` pattern for the GET details.
 Do not change the `CreatedAtAction` line, just make sure `nameof(...)` points to your GET method.
 
 ---
@@ -387,11 +514,20 @@ Then click the green ▶ play button next to each one and check:
 
 | Request | Expected response |
 |---|---|
-| GET with a real id | 200 + full JSON matching the exam example |
-| GET with id 9999 | 404 |
-| POST with valid data | 201 |
-| POST with a name that doesn't exist in DB | 404 |
+| GET details — real id | 200 + full nested JSON matching exam example |
+| GET details — id 9999 | 404 |
+| GET list — no filter | 200 + array of items |
+| GET list — matching filter | 200 + filtered array |
+| GET list — no-match filter | 200 + empty array `[]` (never 404) |
+| POST — valid data | 201 |
+| POST — FK name not in DB | 404 |
+| PUT — real id, valid body | 200 |
+| PUT — id 9999 | 404 |
+| PUT — missing required field | 400 |
+| DELETE — real id | 204 No Content |
+| DELETE — id 9999 | 404 |
 
+Only test the rows that match the verbs your exam actually has.
 If any of these is wrong, fix it before submitting.
 
 ---

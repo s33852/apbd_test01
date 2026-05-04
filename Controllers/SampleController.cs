@@ -16,6 +16,13 @@ public class SampleController : ControllerBase // ← rename SampleController, e
         _sampleService = sampleService;
     }
 
+    [HttpGet] // ← GET /api/samples?filter=abc  — remove [FromQuery] param if the exam has no filter
+    public async Task<IActionResult> GetAll([FromQuery] string? filter) // ← rename GetAll
+    {
+        var results = await _sampleService.GetAllAsync(filter); // ← replace GetAllAsync with your method name
+        return Ok(results);
+    }
+
     [HttpGet("{id:int}/details")] // ← replace "details" with the segment from exam URL, e.g. "rentals"
     public async Task<IActionResult> GetDetails(int id) // ← rename GetDetails, e.g. GetCustomerRentals
     {
@@ -25,6 +32,24 @@ public class SampleController : ControllerBase // ← rename SampleController, e
             return NotFound($"Sample with id {id} was not found."); // ← replace "Sample" with your resource name
 
         return Ok(result);
+    }
+
+    [HttpPut("{id:int}")] // ← PUT /api/samples/{id}
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateSampleRequest request) // ← rename Update + UpdateSampleRequest
+    {
+        var found = await _sampleService.UpdateAsync(id, request); // ← replace UpdateAsync with your method name
+        if (!found)
+            return NotFound($"Sample with id {id} was not found."); // ← replace "Sample"
+        return Ok();
+    }
+
+    [HttpDelete("{id:int}")] // ← DELETE /api/samples/{id}
+    public async Task<IActionResult> Delete(int id) // ← rename Delete
+    {
+        var found = await _sampleService.DeleteAsync(id); // ← replace DeleteAsync with your method name
+        if (!found)
+            return NotFound($"Sample with id {id} was not found."); // ← replace "Sample"
+        return NoContent();
     }
 
     [HttpPost("{id:int}/items")] // ← replace "items" with the segment from exam URL, e.g. "rentals"

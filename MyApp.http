@@ -38,4 +38,48 @@ Content-Type: application/json
   ]
 }
 
+### GET ALL — no filter (expect 200 with full list)
+GET {{MyApp_HostAddress}}/api/samples
+Accept: application/json
+
+### GET ALL — with filter (expect 200 with filtered list)
+GET {{MyApp_HostAddress}}/api/samples?filter=abc
+Accept: application/json
+
+### GET ALL — filter that matches nothing (expect 200 with empty list [])
+GET {{MyApp_HostAddress}}/api/samples?filter=zzznomatch
+Accept: application/json
+
+### PUT — happy path (expect 200)
+PUT {{MyApp_HostAddress}}/api/samples/1
+Content-Type: application/json
+
+{
+  "field1": "UpdatedValue1",
+  "field2": "UpdatedValue2"
+}
+
+### PUT — unknown id (expect 404)
+PUT {{MyApp_HostAddress}}/api/samples/9999
+Content-Type: application/json
+
+{
+  "field1": "UpdatedValue1",
+  "field2": "UpdatedValue2"
+}
+
+### PUT — missing required field (expect 400)
+PUT {{MyApp_HostAddress}}/api/samples/1
+Content-Type: application/json
+
+{
+  "field1": "UpdatedValue1"
+}
+
+### DELETE — happy path (expect 204)
+DELETE {{MyApp_HostAddress}}/api/samples/1
+
+### DELETE — unknown id (expect 404)
+DELETE {{MyApp_HostAddress}}/api/samples/9999
+
 ###

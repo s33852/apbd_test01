@@ -4,6 +4,9 @@ namespace MyApp.Repositories; // ← replace MyApp
 
 public interface ISampleRepository // ← rename, e.g. ICustomerRepository
 {
-    Task<SampleResponse?> GetDetailsAsync(int id);              // ← copy exactly from ISampleService — must be identical
-    Task CreateItemAsync(int id, CreateSampleRequest request);  // ← copy exactly from ISampleService — must be identical
+    Task<SampleResponse?> GetDetailsAsync(int id);                            // ← copy exactly from ISampleService — must be identical
+    Task<List<SampleListItemResponse>> GetAllAsync(string? filter);           // ← copy exactly from ISampleService — must be identical
+    Task CreateItemAsync(int id, CreateSampleRequest request);                // ← copy exactly from ISampleService — must be identical
+    Task<bool> UpdateAsync(int id, UpdateSampleRequest request);              // ← copy exactly from ISampleService — must be identical
+    Task<bool> DeleteAsync(int id);                                           // ← copy exactly from ISampleService — must be identical
 }

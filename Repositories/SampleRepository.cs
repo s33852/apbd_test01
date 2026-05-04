@@ -91,6 +91,67 @@ public class SampleRepository : ISampleRepository // ← rename both, e.g. Custo
         };
     }
 
+    public async Task<List<SampleListItemResponse>> GetAllAsync(string? filter) // ← rename method + return type
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        var sql = "SELECT t.id, t.name FROM SampleTable t"; // ← replace SampleTable + columns with your table/column names
+        if (!string.IsNullOrWhiteSpace(filter))
+            sql += " WHERE t.name LIKE @filter"; // ← replace name with the column you filter on; remove block if no filter
+
+        await using var cmd = new SqlCommand(sql, connection);
+        if (!string.IsNullOrWhiteSpace(filter))
+            cmd.Parameters.AddWithValue("@filter", $"%{filter}%"); // ← adjust if exam uses exact match instead of LIKE
+
+        var results = new List<SampleListItemResponse>(); // ← replace SampleListItemResponse with your list DTO class name
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            results.Add(new SampleListItemResponse // ← replace SampleListItemResponse
+            {
+                Id   = reader.GetInt32(0),  // ← 0 = id index in SELECT above
+                Name = reader.GetString(1)  // ← 1 = name index in SELECT above; rename Name to match your DTO property
+            });
+        }
+
+        return results;
+    }
+
+    public async Task<bool> UpdateAsync(int id, UpdateSampleRequest request) // ← rename method + request type
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        await using var cmd = new SqlCommand(@"
+            UPDATE SampleTable
+            SET col1 = @field1,
+                col2 = @field2
+            WHERE id = @id;", // ← replace SampleTable, col1/col2 with your table/column names
+            connection);
+
+        cmd.Parameters.AddWithValue("@field1", request.Field1); // ← replace Field1 with your DTO property name
+        cmd.Parameters.AddWithValue("@field2", request.Field2); // ← replace Field2 with your DTO property name
+        cmd.Parameters.AddWithValue("@id", id);
+
+        var rows = await cmd.ExecuteNonQueryAsync();
+        return rows > 0; // ← false means no row matched → controller returns 404
+    }
+
+    public async Task<bool> DeleteAsync(int id) // ← rename method
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        await using var cmd = new SqlCommand(
+            "DELETE FROM SampleTable WHERE id = @id;", // ← replace SampleTable + id with your table/column
+            connection);
+        cmd.Parameters.AddWithValue("@id", id);
+
+        var rows = await cmd.ExecuteNonQueryAsync();
+        return rows > 0; // ← false means no row matched → controller returns 404
+    }
+
     public async Task CreateItemAsync(int id, CreateSampleRequest request) // ← rename method + request type to match interface
     {
         await using var connection = new SqlConnection(_connectionString);
