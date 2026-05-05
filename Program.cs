@@ -1,5 +1,5 @@
-using MyApp.Repositories; // ← replace MyApp with your project name (or use Find & Replace)
-using MyApp.Services;     // ← same
+using Test.Repositories; 
+using Test.Services;     
 
 var builder = WebApplication.CreateBuilder(args);
 

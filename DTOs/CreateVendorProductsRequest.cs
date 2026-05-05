@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace MyApp.DTOs; // ← replace MyApp
+namespace Test.DTOs; 
 
 public class CreateSampleItemRequest // ← rename to match the exam, e.g. CreateRentalMovieRequest
 {

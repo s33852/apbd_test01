@@ -1,12 +1,12 @@
-using MyApp.DTOs;        // ← replace MyApp
-using MyApp.Exceptions;  // ← replace MyApp
-using MyApp.Services;    // ← replace MyApp
+using Test.DTOs;       
+using Test.Exceptions;  
+using Test.Services;    
 using Microsoft.AspNetCore.Mvc;
 
-namespace MyApp.Controllers; // ← replace MyApp
+namespace Test.Controllers; 
 
 [ApiController]
-[Route("api/samples")] // ← replace "samples" with your resource, e.g. "api/customers"
+[Route("api/Products")]
 public class SampleController : ControllerBase // ← rename SampleController, e.g. CustomersController
 {
     private readonly ISampleService _sampleService; // ← replace ISampleService
@@ -33,25 +33,6 @@ public class SampleController : ControllerBase // ← rename SampleController, e
 
         return Ok(result);
     }
-
-    [HttpPut("{id:int}")] // ← PUT /api/samples/{id}
-    public async Task<IActionResult> Update(int id, [FromBody] UpdateSampleRequest request) // ← rename Update + UpdateSampleRequest
-    {
-        var found = await _sampleService.UpdateAsync(id, request); // ← replace UpdateAsync with your method name
-        if (!found)
-            return NotFound($"Sample with id {id} was not found."); // ← replace "Sample"
-        return Ok();
-    }
-
-    [HttpDelete("{id:int}")] // ← DELETE /api/samples/{id}
-    public async Task<IActionResult> Delete(int id) // ← rename Delete
-    {
-        var found = await _sampleService.DeleteAsync(id); // ← replace DeleteAsync with your method name
-        if (!found)
-            return NotFound($"Sample with id {id} was not found."); // ← replace "Sample"
-        return NoContent();
-    }
-
     [HttpPost("{id:int}/items")] // ← replace "items" with the segment from exam URL, e.g. "rentals"
     public async Task<IActionResult> CreateItem(int id, [FromBody] CreateSampleRequest request) // ← rename CreateItem + CreateSampleRequest
     {

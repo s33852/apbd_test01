@@ -1,5 +1,5 @@
-// No changes needed — copy as-is into every project.
-namespace MyApp.Exceptions;
+
+namespace Test.Exceptions;
 
 public class NotFoundException : Exception
 {
